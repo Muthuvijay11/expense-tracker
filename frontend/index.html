@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SpendWise - Full Stack Smart Expense & Budget Tracker</title>
+<meta name="description" content="Secure, Mobile-First Full Stack Expense and Budget Tracker powered by Spring Boot, MySQL, and JWT">
+<meta name="theme-color" content="#10b981">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SpendWise">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+
+<!-- External Frameworks & Fonts -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+<!-- Offline & Online Notification Banners -->
+<div class="offline-banner" id="offlineBanner" role="alert">
+  <i class="fa-solid fa-wifi-slash"></i>
+  <span>You are offline. Transactions will sync with the server once reconnected.</span>
+</div>
+<div class="online-synced-banner" id="onlineBanner" role="status">
+  <i class="fa-solid fa-circle-check"></i>
+  <span>Back online! Synchronized with SpendWise server.</span>
+</div>
+
+<div class="bg-atmosphere"></div>
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+<!-- Main Container -->
+<div style="position:relative; z-index:1; max-width:1360px; margin:0 auto; padding:24px 20px 60px;">
+
+  <!-- Header -->
+  <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:16px;">
+    <div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="width:40px;height:40px;border-radius:12px;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;border:1px solid rgba(16,185,129,0.3);">
+          <i class="fa-solid fa-wallet" style="color:var(--accent);font-size:18px;"></i>
+        </span>
+        <h1 style="font-size:26px; font-weight:700; letter-spacing:-0.5px;">SpendWise</h1>
+        <div class="network-badge" id="networkBadge">
+          <span class="network-dot"></span> Online
+        </div>
+      </div>
+      <p style="color:var(--text-muted); font-size:13px; margin-top:4px; margin-left:52px;" id="headerDate"></p>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:12px;" class="header-actions">
+      <button class="btn-ghost" onclick="exportData()" aria-label="Export data to CSV">
+        <i class="fa-solid fa-download" style="margin-right:6px;"></i> Export CSV
+      </button>
+      <button class="btn-primary" onclick="openModal('add')" aria-label="Add new transaction">
+        <i class="fa-solid fa-plus"></i> Add Transaction
+      </button>
+      <div id="userHeaderArea"></div>
+    </div>
+  </header>
+
+  <!-- Stats Grid -->
+  <div class="stats-grid" id="dashboardSection" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:28px;">
+    <div class="card stat-card income" style="padding:20px;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <p style="color:var(--text-muted); font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">Income</p>
+          <p id="statIncome" style="font-family:'Space Grotesk'; font-size:26px; font-weight:700; margin-top:6px;">$0.00</p>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+      </div>
+      <p style="color:var(--text-muted); font-size:11px; margin-top:8px;" id="statIncomeChange"></p>
+    </div>
+    <div class="card stat-card expense" style="padding:20px;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <p style="color:var(--text-muted); font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">Expenses</p>
+          <p id="statExpense" style="font-family:'Space Grotesk'; font-size:26px; font-weight:700; margin-top:6px;">$0.00</p>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-arrow-trend-down"></i></div>
+      </div>
+      <p style="color:var(--text-muted); font-size:11px; margin-top:8px;" id="statExpenseChange"></p>
+    </div>
+    <div class="card stat-card balance" style="padding:20px;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <p style="color:var(--text-muted); font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">Net Balance</p>
+          <p id="statBalance" style="font-family:'Space Grotesk'; font-size:26px; font-weight:700; margin-top:6px;">$0.00</p>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+      </div>
+      <p style="color:var(--text-muted); font-size:11px; margin-top:8px;" id="statBalanceNote"></p>
+    </div>
+    <div class="card stat-card savings" style="padding:20px;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <p style="color:var(--text-muted); font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">Savings Rate</p>
+          <p id="statSavings" style="font-family:'Space Grotesk'; font-size:26px; font-weight:700; margin-top:6px;">0%</p>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-piggy-bank"></i></div>
+      </div>
+      <p style="color:var(--text-muted); font-size:11px; margin-top:8px;" id="statSavingsNote"></p>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="main-grid" style="display:grid; grid-template-columns:1fr 400px; gap:24px;">
+
+    <!-- Left Column -->
+    <div style="display:flex; flex-direction:column; gap:24px;">
+
+      <!-- Chart Section -->
+      <div class="card" id="chartSection" style="padding:24px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+          <h3 style="font-size:16px; font-weight:600;">Spending Overview</h3>
+          <div style="display:flex; gap:4px; background:var(--bg-primary); border-radius:10px; padding:3px; border:1px solid var(--border);">
+            <button class="tab-btn active" data-chart="weekly" onclick="switchChart('weekly', this)">Weekly</button>
+            <button class="tab-btn" data-chart="monthly" onclick="switchChart('monthly', this)">Monthly</button>
+            <button class="tab-btn" data-chart="category" onclick="switchChart('category', this)">By Category</button>
+          </div>
+        </div>
+        <div style="position:relative; height:280px;">
+          <canvas id="mainChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Transactions Section -->
+      <div class="card" id="transactionsSection" style="padding:24px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+          <h3 style="font-size:16px; font-weight:600;">Recent Transactions</h3>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="position:relative;">
+              <i class="fa-solid fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:12px;"></i>
+              <input type="text" class="form-input" id="searchInput" placeholder="Search transactions..." style="padding-left:32px; width:220px; font-size:13px;" oninput="renderTransactions()">
+            </div>
+          </div>
+        </div>
+        <!-- Filter pills -->
+        <div id="filterPills" style="display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap;"></div>
+        <!-- Transaction list -->
+        <div id="txList" style="display:flex; flex-direction:column; gap:4px; max-height:440px; overflow-y:auto; padding-right:4px;"></div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div style="display:flex; flex-direction:column; gap:24px;">
+
+      <!-- Budget Section -->
+      <div class="card" id="budgetSection" style="padding:24px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+          <h3 style="font-size:16px; font-weight:600;">Monthly Budgets</h3>
+          <button class="btn-ghost" onclick="openModal('budget')" style="font-size:12px; padding:6px 12px; min-height:36px;">
+            <i class="fa-solid fa-sliders" style="margin-right:4px;"></i> Manage
+          </button>
+        </div>
+        <div id="budgetList" style="display:flex; flex-direction:column; gap:16px;"></div>
+      </div>
+
+      <!-- Category Breakdown (Doughnut) -->
+      <div class="card" style="padding:24px;">
+        <h3 style="font-size:16px; font-weight:600; margin-bottom:20px;">Category Breakdown</h3>
+        <div style="position:relative; height:220px; display:flex; align-items:center; justify-content:center;">
+          <canvas id="doughnutChart"></canvas>
+        </div>
+        <div id="doughnutLegend" style="margin-top:16px; display:flex; flex-wrap:wrap; gap:8px 16px; justify-content:center;"></div>
+      </div>
+
+      <!-- Quick Insights -->
+      <div class="card" style="padding:24px;">
+        <h3 style="font-size:16px; font-weight:600; margin-bottom:16px;">Quick Insights</h3>
+        <div id="insightsList" style="display:flex; flex-direction:column; gap:12px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Bottom Navigation -->
+<nav class="bottom-nav" aria-label="Mobile Navigation">
+  <button class="bottom-nav-item active" data-nav="dashboard" onclick="switchMobileTab('dashboard')">
+    <i class="fa-solid fa-chart-line"></i>
+    <span>Dashboard</span>
+  </button>
+  <button class="bottom-nav-item" data-nav="transactions" onclick="switchMobileTab('transactions')">
+    <i class="fa-solid fa-receipt"></i>
+    <span>Transactions</span>
+  </button>
+  <button class="bottom-nav-item" data-nav="budgets" onclick="switchMobileTab('budgets')">
+    <i class="fa-solid fa-sliders"></i>
+    <span>Budgets</span>
+  </button>
+  <button class="bottom-nav-item" data-nav="reports" onclick="switchMobileTab('reports')">
+    <i class="fa-solid fa-chart-pie"></i>
+    <span>Reports</span>
+  </button>
+  <button class="bottom-nav-item" data-nav="profile" onclick="switchMobileTab('profile')">
+    <i class="fa-solid fa-user"></i>
+    <span>Account</span>
+  </button>
+</nav>
+
+<!-- Mobile Floating Action Button (FAB) -->
+<button class="mobile-fab" onclick="openModal('add')" aria-label="Add transaction quickly">
+  <i class="fa-solid fa-plus"></i>
+</button>
+
+<!-- Add/Edit Transaction Modal -->
+<div class="modal-overlay" id="txModal" onclick="if(event.target===this)closeModal('txModal')">
+  <div class="modal-content" role="dialog" aria-modal="true" aria-label="Transaction form">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+      <h3 id="txModalTitle" style="font-size:18px; font-weight:600;">Add Transaction</h3>
+      <button class="btn-icon" onclick="closeModal('txModal')" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="txForm" onsubmit="handleTxSubmit(event)" style="display:flex; flex-direction:column; gap:16px;">
+      <input type="hidden" id="txId">
+      <div>
+        <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:8px;">Type</label>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="tab-btn active" id="typeExpense" onclick="setTxType('expense')" style="flex:1; padding:10px;">Expense</button>
+          <button type="button" class="tab-btn" id="typeIncome" onclick="setTxType('income')" style="flex:1; padding:10px;">Income</button>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:8px;">Description</label>
+        <input type="text" class="form-input" id="txDesc" placeholder="e.g. Grocery shopping" required>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div>
+          <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:8px;">Amount</label>
+          <input type="number" class="form-input" id="txAmount" placeholder="0.00" step="0.01" min="0.01" required>
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:8px;">Date</label>
+          <input type="date" class="form-input" id="txDate" required>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:8px;">Category</label>
+        <select class="form-input" id="txCategory" required></select>
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:8px;">Notes (optional)</label>
+        <input type="text" class="form-input" id="txNotes" placeholder="Additional details...">
+      </div>
+      <div style="display:flex; gap:12px; margin-top:8px;">
+        <button type="button" class="btn-ghost" onclick="closeModal('txModal')" style="flex:1;">Cancel</button>
+        <button type="submit" class="btn-primary" style="flex:1;" id="txSubmitBtn">Add Transaction</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Budget Management Modal -->
+<div class="modal-overlay" id="budgetModal" onclick="if(event.target===this)closeModal('budgetModal')">
+  <div class="modal-content" role="dialog" aria-modal="true" aria-label="Budget management">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+      <h3 style="font-size:18px; font-weight:600;">Manage Budgets</h3>
+      <button class="btn-icon" onclick="closeModal('budgetModal')" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="budgetFormList" style="display:flex; flex-direction:column; gap:14px; max-height:400px; overflow-y:auto; padding-right:4px;"></div>
+    <button class="btn-primary" onclick="saveBudgets()" style="width:100%; justify-content:center; margin-top:20px;">
+      <i class="fa-solid fa-check"></i> Save Budgets
+    </button>
+  </div>
+</div>
+
+<!-- Auth Modal (Login / Register) -->
+<div class="modal-overlay" id="authModal" onclick="if(event.target===this)closeAuthModal()">
+  <div class="modal-content auth-card" role="dialog" aria-modal="true" aria-label="Sign In or Register">
+    <div class="auth-header">
+      <div class="auth-logo">
+        <i class="fa-solid fa-wallet" style="color:var(--accent); font-size:22px;"></i>
+      </div>
+      <h3 style="font-size:20px; font-weight:700;">Welcome to SpendWise</h3>
+      <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">Manage your income, expenses, and monthly budgets securely</p>
+    </div>
+
+    <!-- Switcher -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchAuthTab('register')">Create Account</button>
+    </div>
+
+    <div id="authError" style="display:none; background:rgba(239,68,68,0.15); color:#fca5a5; border:1px solid #ef4444; padding:10px 14px; border-radius:10px; font-size:12px; margin-bottom:16px;"></div>
+
+    <!-- Login Form -->
+    <div id="loginFormContainer">
+      <form onsubmit="handleLoginSubmit(event)" style="display:flex; flex-direction:column; gap:14px;">
+        <div>
+          <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:6px;">Username or Email</label>
+          <input type="text" class="form-input" id="loginIdentifier" placeholder="e.g. alice or alice@example.com" required>
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:6px;">Password</label>
+          <input type="password" class="form-input" id="loginPassword" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn-primary" id="loginSubmitBtn" style="width:100%; justify-content:center; margin-top:8px;">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In
+        </button>
+      </form>
+      <div style="margin-top:16px; text-align:center;">
+        <button type="button" class="btn-ghost" onclick="fillDemoCredentials()" style="width:100%; font-size:12px; padding:8px 12px; border-style:dashed;">
+          <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent); margin-right:6px;"></i> Fill Demo Credentials (alice)
+        </button>
+      </div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="registerFormContainer" style="display:none;">
+      <form onsubmit="handleRegisterSubmit(event)" style="display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:4px;">Full Name</label>
+          <input type="text" class="form-input" id="regFullName" placeholder="e.g. Alice Smith" required>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:4px;">Username</label>
+            <input type="text" class="form-input" id="regUsername" placeholder="alice" required>
+          </div>
+          <div>
+            <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:4px;">Currency</label>
+            <select class="form-input" id="regCurrency">
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+              <option value="INR">INR (₹)</option>
+              <option value="CAD">CAD ($)</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:4px;">Email</label>
+          <input type="email" class="form-input" id="regEmail" placeholder="alice@example.com" required>
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:500; color:var(--text-secondary); display:block; margin-bottom:4px;">Password</label>
+          <input type="password" class="form-input" id="regPassword" placeholder="Minimum 6 characters" minlength="6" required>
+        </div>
+        <button type="submit" class="btn-primary" id="regSubmitBtn" style="width:100%; justify-content:center; margin-top:8px;">
+          <i class="fa-solid fa-user-plus"></i> Create Account
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

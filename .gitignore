@@ -1,0 +1,19 @@
+﻿# Secrets
+.env
+.env.*
+!.env.example
+
+# Local development secrets
+backend/src/main/resources/application-dev.yml
+
+# Build/generated files
+**/target/
+backend/bin/
+
+# IDE and logs
+.idea/
+*.iml
+*.log
+
+# Local test configuration
+backend/src/test/resources/application-test.yml
